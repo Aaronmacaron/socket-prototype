@@ -87,23 +87,20 @@ public class Server {
 
     private void executeAllMatchingActionHandlers(ActionType actionType, JsonObject json) {
         actionHandlers.forEach(actionHandler -> {
-            while (actionHandler != Object.class) {
-                final List<Method> allMethods = new ArrayList<>(Arrays.asList(actionHandler.getDeclaredMethods()));
-                for (Method method : allMethods) {
-                    if (method.isAnnotationPresent(ActionHandler.class)) {
-                        ActionHandler annotation = method.getAnnotation(ActionHandler.class);
-                        if (annotation.actionType() == actionType) {
-                            try {
-                                method.invoke(actionHandler.newInstance(), json);
-                            } catch (IllegalAccessException | InvocationTargetException e) {
-                                // Do nothing if method hasn't got the right parameters.
-                            } catch (InstantiationException e) {
-                                e.printStackTrace();
-                            }
+            final List<Method> allMethods = new ArrayList<>(Arrays.asList(actionHandler.getDeclaredMethods()));
+            for (Method method : allMethods) {
+                if (method.isAnnotationPresent(ActionHandler.class)) {
+                    ActionHandler annotation = method.getAnnotation(ActionHandler.class);
+                    if (annotation.actionType() == actionType) {
+                        try {
+                            method.invoke(actionHandler.newInstance(), json);
+                        } catch (IllegalAccessException | InvocationTargetException e) {
+                            // Do nothing if method hasn't got the right parameters.
+                        } catch (InstantiationException e) {
+                            e.printStackTrace();
                         }
                     }
                 }
-                actionHandler = actionHandler.getSuperclass();
             }
         });
     }

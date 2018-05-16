@@ -1,5 +1,7 @@
 package tk.aakado.socketPrototype.shared;
 
+import com.google.gson.Gson;
+
 public class Action {
     private ActionType actionType;
     private Object params;
@@ -15,5 +17,9 @@ public class Action {
 
     public Object getParams() {
         return params;
+    }
+
+    public String toJson() {
+        return new Gson().toJson(this);
     }
 }
