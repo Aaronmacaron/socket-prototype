@@ -5,7 +5,7 @@ import tk.aakado.socketPrototype.shared.ActionType;
 
 public class ExampleActionHandler {
 
-    @ActionHandler(actionType = ActionType.CLICK)
+    @ActionHandler(actionType = ActionType.BLA)
     public void handleClick(JsonObject params) {
         System.out.println("Click handler executed");
         int x = params.get("x").getAsInt();

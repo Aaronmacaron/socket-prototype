@@ -1,5 +1,5 @@
 package tk.aakado.socketPrototype.shared;
 
 public enum ActionType {
-    CLICK
+    CLICK, BLA
 }

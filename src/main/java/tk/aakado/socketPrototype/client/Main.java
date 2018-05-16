@@ -23,8 +23,7 @@ public class Main {
             TimeUnit.SECONDS.sleep(3);
 
             Action action = new Action(ActionType.CLICK, new Point(123, 19));
-            String json = (new Gson()).toJson(action);
-            output.println(json);
+            output.println(action.toJson());
 
             String line;
             while((line = input.readLine()) != null) {
