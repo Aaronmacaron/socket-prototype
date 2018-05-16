@@ -1,6 +1,7 @@
 package tk.aakado.socketPrototype.server;
 
 import com.google.gson.*;
+import tk.aakado.socketPrototype.shared.Action;
 import tk.aakado.socketPrototype.shared.ActionType;
 
 import java.io.BufferedReader;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -23,6 +25,7 @@ public class Server {
     private ServerSocket server;
     private List<Connection> connections = new ArrayList<>();
     private List<Class> actionHandlers = new ArrayList<>();
+    private ExecutorService queue = Executors.newFixedThreadPool(20);
 
     public Server(int port) {
         try {
@@ -32,7 +35,7 @@ public class Server {
             e.printStackTrace();
             System.exit(1);
         }
-        listen();
+        executeRepeatidly(this::listen);
     }
 
     public void addActionHandler(Class actionHandler) {
@@ -43,49 +46,44 @@ public class Server {
         this.actionHandlers.addAll(actionsHandlers);
     }
 
-    private void listen() {
-        ScheduledExecutorService listenService = Executors.newScheduledThreadPool(1);
-        listenService.scheduleWithFixedDelay(
-                () -> {
-                    try {
-                        Socket socket = server.accept();
-                        System.out.println("Client connected: " + socket.getRemoteSocketAddress());
+    private void executeRepeatidly(Runnable r) {
+        ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
+        service.scheduleWithFixedDelay(r, 1, 1, TimeUnit.MICROSECONDS);
+    }
 
-                        PrintWriter output = new PrintWriter(socket.getOutputStream(), true);
-                        BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                        Connection connection = new Connection(socket, output, input);
-                        connections.add(connection);
-                        handleInput(connection);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        System.exit(1);
-                    }
-                }, 1,
-                1,
-                TimeUnit.MICROSECONDS
-        );
+    private void listen() {
+        try {
+            Socket socket = server.accept();
+            System.out.println("Client connected: " + socket.getRemoteSocketAddress());
+
+            PrintWriter output = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            Connection connection = new Connection(socket, output, input);
+            connections.add(connection);
+            executeRepeatidly(() -> handleInput(connection));
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 
     private void handleInput(Connection connection) {
-        ScheduledExecutorService inputService = Executors.newScheduledThreadPool(1);
-        inputService.scheduleWithFixedDelay(() -> {
-            try {
-                String line;
-                while((line = connection.getInput().readLine()) != null) {
-                    JsonParser parser = new JsonParser();
-                    JsonObject json = parser.parse(line).getAsJsonObject();
-                    JsonObject params = json.getAsJsonObject("params");
-                    ActionType actionType = ActionType.valueOf(json.get("actionType").getAsString());
-                    executeAllMatchingActionHandlers(actionType, params);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-                System.exit(1);
+        try {
+            String line;
+            while((line = connection.getInput().readLine()) != null) {
+                JsonParser parser = new JsonParser();
+                JsonObject json = parser.parse(line).getAsJsonObject();
+                JsonObject params = json.getAsJsonObject("params");
+                ActionType actionType = ActionType.valueOf(json.get("actionType").getAsString());
+                queue.submit(() -> executeAllMatchingActionHandlers(actionType, params, connection));
             }
-        }, 1, 1, TimeUnit.MICROSECONDS);
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 
-    private void executeAllMatchingActionHandlers(ActionType actionType, JsonObject json) {
+    private void executeAllMatchingActionHandlers(ActionType actionType, JsonObject json, Connection connection) {
         actionHandlers.forEach(actionHandler -> {
             final List<Method> allMethods = new ArrayList<>(Arrays.asList(actionHandler.getDeclaredMethods()));
             for (Method method : allMethods) {
@@ -93,7 +91,8 @@ public class Server {
                     ActionHandler annotation = method.getAnnotation(ActionHandler.class);
                     if (annotation.actionType() == actionType) {
                         try {
-                            method.invoke(actionHandler.newInstance(), json);
+                            Message message = new Message(this, connection, json);
+                            method.invoke(actionHandler.newInstance(), message);
                         } catch (IllegalAccessException | InvocationTargetException e) {
                             // Do nothing if method hasn't got the right parameters.
                         } catch (InstantiationException e) {
@@ -103,5 +102,19 @@ public class Server {
                 }
             }
         });
+    }
+
+    public void broadcast(Action action) {
+        for (Connection connection : connections) {
+            connection.getOutput().println(action.toJson());
+        }
+    }
+
+    public void broadcastExcept(Action action, Connection except) {
+        for (Connection connection : connections) {
+            if (!connection.equals(except)) {
+                connection.getOutput().println(action.toJson());
+            }
+        }
     }
 }
