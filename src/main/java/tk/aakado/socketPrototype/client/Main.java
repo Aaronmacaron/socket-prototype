@@ -1,6 +1,5 @@
 package tk.aakado.socketPrototype.client;
 
-import com.google.gson.Gson;
 import tk.aakado.socketPrototype.shared.Action;
 import tk.aakado.socketPrototype.shared.ActionType;
 
@@ -23,6 +22,11 @@ public class Main {
             TimeUnit.SECONDS.sleep(3);
 
             Action action = new Action(ActionType.CLICK, new Point(123, 19));
+            output.println(action.toJson());
+
+            TimeUnit.SECONDS.sleep(3);
+
+            action = new Action(ActionType.SET_PASSWORD, new SetPasswordAction("secretPassword"));
             output.println(action.toJson());
 
             String line;
