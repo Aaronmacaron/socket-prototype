@@ -3,17 +3,17 @@ package tk.aakado.socketPrototype.server;
 import com.google.gson.JsonObject;
 
 public class Message {
-    private Server server;
+    private ServerConnector server;
     private Connection sender;
     private JsonObject params;
 
-    public Message(Server server, Connection sender, JsonObject params) {
+    public Message(ServerConnector server, Connection sender, JsonObject params) {
         this.server = server;
         this.sender = sender;
         this.params = params;
     }
 
-    public Server getServer() {
+    public ServerConnector getServer() {
         return server;
     }
 

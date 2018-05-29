@@ -15,7 +15,7 @@ public class Main {
     public static void main(String[] args) {
         try {
             Socket connection = new Socket("localhost", 9988);
-            System.out.println("Connected to MultiSweeper Server");
+            System.out.println("Connected to MultiSweeper ServerConnector");
             PrintWriter output = new PrintWriter(connection.getOutputStream(), true);
             BufferedReader input = new BufferedReader(new InputStreamReader(connection.getInputStream()));
 

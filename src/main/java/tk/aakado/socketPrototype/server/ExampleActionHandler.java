@@ -16,7 +16,7 @@ public class ExampleActionHandler {
         System.out.println("Click at " + x + " / " + y);
 
         Action action = new Action(ActionType.CLICK, new Point(x, y));
-        message.getServer().broadcastExcept(action, message.getSender());
+        message.getServer().sendExcept(action, message.getSender());
     }
 
     @ActionHandler(actionType = ActionType.SET_PASSWORD)

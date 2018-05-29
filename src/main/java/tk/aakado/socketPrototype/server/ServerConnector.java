@@ -1,6 +1,7 @@
 package tk.aakado.socketPrototype.server;
 
 import com.google.gson.*;
+import tk.aakado.socketPrototype.shared.AbstractConnector;
 import tk.aakado.socketPrototype.shared.Action;
 import tk.aakado.socketPrototype.shared.ActionType;
 
@@ -14,39 +15,38 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class Server {
+public class ServerConnector extends AbstractConnector{
     private ServerSocket server;
     private List<Connection> connections = new ArrayList<>();
     private List<Class> actionHandlers = new ArrayList<>();
     private ExecutorService queue = Executors.newFixedThreadPool(20);
+    private final int port;
+    private boolean isStarted = false;
 
-    public Server(int port) {
+    public ServerConnector(int port) {
+        this.port = port;
+    }
+
+    @Override
+    public void start() {
         try {
             server = new ServerSocket(port);
-            System.out.println("Server started! Listening for incoming connections on port " + port);
+            System.out.println("ServerConnector started! Listening for incoming connections on port " + port);
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
         }
-        executeRepeatidly(this::listen);
+        executeRepeatedly(this::listen);
+        isStarted = true;
     }
 
-    public void addActionHandler(Class actionHandler) {
-        actionHandlers.add(actionHandler);
-    }
-
-    public void addAllActionHandlers(Collection<Class> actionsHandlers) {
-        this.actionHandlers.addAll(actionsHandlers);
-    }
-
-    private void executeRepeatidly(Runnable r) {
+    private void executeRepeatedly(Runnable r) {
         ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
         service.scheduleWithFixedDelay(r, 1, 1, TimeUnit.MICROSECONDS);
     }
@@ -60,7 +60,7 @@ public class Server {
             BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             Connection connection = new Connection(socket, output, input);
             connections.add(connection);
-            executeRepeatidly(() -> handleInput(connection));
+            executeRepeatedly(() -> handleInput(connection));
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
@@ -104,13 +104,21 @@ public class Server {
         });
     }
 
-    public void broadcast(Action action) {
+    public void send(Action action) {
+        if (!isStarted) {
+            throw new IllegalStateException("Server is not started yet.");
+        }
+
         for (Connection connection : connections) {
             connection.getOutput().println(action.toJson());
         }
     }
 
-    public void broadcastExcept(Action action, Connection except) {
+    public void sendExcept(Action action, Connection except) {
+        if (!isStarted) {
+            throw new IllegalStateException("Server is not started yet.");
+        }
+
         for (Connection connection : connections) {
             if (!connection.equals(except)) {
                 connection.getOutput().println(action.toJson());
